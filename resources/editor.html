@@ -12,6 +12,7 @@
 <script src="vs/loader.js"></script>
 <script>
     require.config({paths: {'vs': 'vs'}});
+    require.config({  'vs/nls': { availableLanguages: { '*': "zh-cn" } } });
     require(['vs/editor/editor.main.js'],function(){});
     window.onload=function(){
         editor = monaco.editor.create(document.getElementById('container'),{

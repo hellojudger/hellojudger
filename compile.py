@@ -1,6 +1,9 @@
 import json, os, shutil, subprocess
 import uuid
 
+class CompileError(Exception):
+    pass
+
 
 def compile_cpp(source, version, optimization):
     fn = str(uuid.uuid4())
@@ -17,8 +20,12 @@ def compile_cpp(source, version, optimization):
         os.mkdir("compiling")
     with open("compiling/%s.cpp" % fn, "w", encoding="utf-8") as f:
         f.write(source)
-    command = compiler_settings["compiler"] + " \"compiling/%s.cpp\" -o \"compiling/%s.exe\" " % (fn, fn) + " ".join(
+    headers = []
+    headers.append("compiling/%s.cpp" % fn)
+    headers = list(map(lambda x:"\"%s\""%x, headers))
+    command = compiler_settings["compiler"] + " " + ' '.join(headers) + " -o \"compiling/%s.exe\" " % (fn) + " ".join(
         compiler_settings["arguments"]) + " " + version_command + optimization_command
+    print(command)
     (status, output) = subprocess.getstatusoutput(command)
     if status != 0:
         raise Exception("编译错误")

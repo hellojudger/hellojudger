@@ -1,48 +1,48 @@
 {
-    "compiler" : "g++",
-    "arguments" : [],
-    "versions" : [
+    "compiler": "g++",
+    "arguments": [],
+    "versions": [
         {
-            "name" : "C++ 98",
-            "argument" : "-std=c++98"
+            "name": "C++ 98",
+            "argument": "-std=c++98"
         },
         {
-            "name" : "C++ 11",
-            "argument" : "-std=c++11"
+            "name": "C++ 11",
+            "argument": "-std=c++11"
         },
         {
-            "name" : "C++ 14",
-            "argument" : "-std=c++14"
+            "name": "C++ 14",
+            "argument": "-std=c++14"
         },
         {
-            "name" : "C++ 17",
-            "argument" : "-std=c++17"
+            "name": "C++ 17",
+            "argument": "-std=c++17"
         },
         {
-            "name" : "C++ 20",
-            "argument" : "-std=c++20"
+            "name": "C++ 20",
+            "argument": "-std=c++20"
         }
     ],
-    "optimizations" : [
+    "optimizations": [
         {
-            "name" : "无",
-            "argument" : "-O0"
+            "name": "无",
+            "argument": "-O0"
         },
         {
-            "name" : "O1",
-            "argument" : "-O1"
+            "name": "O1",
+            "argument": "-O1"
         },
         {
-            "name" : "O2",
-            "argument" : "-O2"
+            "name": "O2",
+            "argument": "-O2"
         },
         {
-            "name" : "O3",
-            "argument" : "-O3"
+            "name": "O3",
+            "argument": "-O3"
         },
         {
-            "name" : "Ofast",
-            "argument" : "-Ofast"
+            "name": "Ofast",
+            "argument": "-Ofast"
         }
     ]
 }

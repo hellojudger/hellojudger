@@ -1,5 +1,5 @@
 import os
-from PyQt6 import QtWidgets
+from PyQt6 import QtWidgets, QtGui
 from PyQt6.QtCore import QUrl
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 import markdown
@@ -18,3 +18,6 @@ class MarkdownView(QWebEngineView):
         ]
         body_html = markdown.markdown(md, extensions=extensions)
         self.page().runJavaScript("document.getElementById(\"body\").innerHTML=%s;make_latex();no_link();" % repr(body_html))
+    
+    def contextMenuEvent(self, a0):
+        a0.ignore()

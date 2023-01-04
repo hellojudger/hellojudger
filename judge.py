@@ -6,6 +6,9 @@ import math
 import run
 from bs4 import BeautifulSoup
 import os
+import compile
+import platform
+import json
 
 
 def line_compare(input, output, answer):
@@ -107,12 +110,24 @@ def integer_compare(input, output, answer):
             return ["Wrong Answer", "在第 %d 个整数,读到 %s,期望 %s" % (i + 1, oc[i], ac[i]), 0]
     return ["Accepted", "通过,共 %d 个整数" % len(oc), 1]
 
+compiled_ = {}
 
 def testlib_checker_compare(input, output, answer, checker):
+    print(checker)
+    compiler_settings = json.load(open("settings/compiler.json", "r", encoding="utf-8"))
     def rep(s):
-        return "\"" + os.path.abspath(s) + "\""
-
-    # 注意：这里 input,output,answer 需要为文件地址
+        return "\"" + os.path.abspath(s) + "\""  
+    checker.replace("\\", "/")
+    if checker not in compiled_.keys() or not os.path.isfile(compiled_[checker]):
+        pck = checker
+        with open(checker, "r", encoding="utf-8") as f:
+            checker = f.read()
+        checker = compile.compile_cpp(checker, "C++ 14", "O2")
+        compiled_[pck] = checker
+    else:
+        checker = compiled_[checker]
+    if platform.system() == "Linux":
+        system("chmod -R 777 compiling/")
     checker = rep(checker)
     input = rep(input)
     output = rep(output)
@@ -138,3 +153,4 @@ def closure(function, args=[]):  # 简易闭包
         return function(input, output, answer, *args)
 
     return _calling
+

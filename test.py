@@ -5,12 +5,13 @@
 import judge as j_
 import run
 import shutil
-from os import mkdir, listdir
+from os import mkdir, listdir, system
 from os.path import abspath, join as path_join
 from os.path import isdir
 from os.path import dirname
 import yaml
 import uuid
+import platform
 
 
 class Task:
@@ -30,6 +31,8 @@ def judge_one(program, task, judger):
     if not isdir("checking"):
         mkdir("checking")
     filename = "checking/" + str(uuid.uuid4()) + ".exe"
+    if platform.system() == "Linux":
+        system("chmod -R 777 checking/")
     try:
         shutil.copyfile(program, filename)
     except BaseException as e:
@@ -68,12 +71,13 @@ def _debug_juding_slot(type, data):
         print("Subtask %d" % data["id"])
     if type == "task_finished":
         print("%s/%s\t%s\t%s\t%.4lfs\t%.2f Pts" % (
-            data["in"], data["out"], data["sta"], data["msg"], data["time"], data["pts"]))
+            data["input"], data["output"], data["sta"], data["msg"], data["time"], data["pts"]))
     if type == "subtask_ignored":
         print("被忽略")
 
 
 def judge_problem(config_path: str, program, slot=_debug_juding_slot):
+    j_.compiled = {}
     total = 0
     datadir = dirname(config_path)
     with open(config_path, "r", encoding="utf-8") as f:

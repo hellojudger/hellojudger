@@ -13,6 +13,7 @@ import markdown_view
 import monaco
 import time
 import qtmodern.styles
+import webbrowser
 
 os.chdir(os.path.dirname(__file__))
 
@@ -22,6 +23,11 @@ PROBLEM_PATH = ""
 with open("resources/ready.md", encoding="utf-8", mode="r") as f:
     ready_markdown = f.read()
 
+with open("LICENSE", "r", encoding="utf-8") as f:
+    LICENSE = f.read()
+
+with open("resources/UPDATES.md", encoding="utf-8", mode="r") as f:
+    UPDATES = f.read()
 
 def system_open_file(fp):
     uplf = platform.system()
@@ -60,6 +66,11 @@ def get_time_limit():
     if min_time == max_time:
         return "%.2fs" % min_time
     return "%.2fs ~ %.2fs" % (min_time, max_time)
+
+
+class QTextBrowser(QtWidgets.QTextBrowser):
+    def contextMenuEvent(self, e):
+        e.ignore()
 
 
 class FileEdit(QtWidgets.QWidget):
@@ -203,7 +214,7 @@ class ProblemJudgingDialog(QtWidgets.QDialog):
         self.start_btn.clicked.connect(self.startJudge)
         self.bottom_card = QtWidgets.QWidget()
         self.bottom_card.Layout = QtWidgets.QHBoxLayout()
-        self.logging = QtWidgets.QTextBrowser()
+        self.logging = QTextBrowser()
         self.logging.append("这里将会出现评测日志\n")
         self.result_table = QtWidgets.QTableWidget()
         self.result_table.setColumnCount(4)
@@ -366,7 +377,7 @@ class HelloJudgerWindow(QtWidgets.QMainWindow):
         self.newProblemAction.triggered.connect(self.newProblem)
         self.settingMenu = QtWidgets.QMenu("设置")
         self.compileConfigureAction = QtGui.QAction("编译配置")
-        self.compileConfigureAction.triggered.connect(lambda : system_open_file(os.path.abspath("settings/compiler.json")))
+        self.compileConfigureAction.triggered.connect(lambda : monaco.SimpleFileEidtorDialog("编译配置编辑器", "settings/compiler.json"))
         self.exitAction = QtGui.QAction("退出")
         self.exitAction.triggered.connect(exit)
         self.editMenu = QtWidgets.QMenu("编辑")
@@ -382,14 +393,18 @@ class HelloJudgerWindow(QtWidgets.QMainWindow):
         self.aboutMenu = QtWidgets.QMenu("关于")
         self.aboutHelloJudgerAction = QtGui.QAction("关于本程序")
         self.aboutHelloJudgerAction.triggered.connect(lambda: QtWidgets.QMessageBox.information(self,
-                                                                                                "关于 Hello Judger",
-                                                                                                "Hello Judger 第三代 "
-                                                                                                "1.0 by xiezheyuan."
-                                                                                                ))
+            "关于 Hello Judger",
+            "Hello Judger 第三代 1.1 by xiezheyuan."
+        ))
         self.aboutQtAction = QtGui.QAction("关于 Qt")
         self.aboutQtAction.triggered.connect(lambda: QtWidgets.QMessageBox.aboutQt(self))
         self.licenseAction = QtGui.QAction("查看许可证")
-        self.licenseAction.triggered.connect(lambda: system_open_file("LICENSE"))
+        self.licenseAction.triggered.connect(self.showLinense)
+        self.updatesAction = QtGui.QAction("更新内容")
+        self.updatesAction.triggered.connect(self.showUpdates)
+        self.openGithubAction = QtGui.QAction("Github")
+        self.openGithubAction.triggered.connect(lambda: webbrowser.open_new_tab("https://www.github.com/hellojudger/hellojudger/"))
+        self.aboutMenu.addActions([self.aboutHelloJudgerAction, self.aboutQtAction, self.licenseAction, self.updatesAction, self.openGithubAction])
         self.helpMenu.addMenu(self.aboutMenu)
         self.openExampleProblemAction = QtGui.QAction("打开示例")
         self.openExampleProblemAction.triggered.connect(self.openExampleProblem)
@@ -403,7 +418,6 @@ class HelloJudgerWindow(QtWidgets.QMainWindow):
             self.showAdditionalFileAction, self.editProblemStatementAction, self.editJudgingConfigureAction,
             self.editProblemConfigureAction
         ])
-        self.aboutMenu.addActions([self.aboutHelloJudgerAction, self.aboutQtAction, self.licenseAction])
         self.helpMenu.addActions([self.openExampleProblemAction, self.openManualAction])
         self.menuBar().addMenu(self.fileMenu)
         self.menuBar().addMenu(self.editMenu)
@@ -449,26 +463,17 @@ class HelloJudgerWindow(QtWidgets.QMainWindow):
     def editProblemStatement(self):
         global PROBLEM_PATH
         stat = os.path.join(PROBLEM_PATH, "problem_zh.md").replace("\\", "/")
-        if not os.path.isfile(stat):
-            with open(stat, "w"):
-                pass
-        system_open_file(stat)
+        monaco.SimpleFileEidtorDialog("题面编辑器", stat)
 
     def editJudgingConfigure(self):
         global PROBLEM_PATH
         stat = os.path.join(PROBLEM_PATH, "testdata/config.yaml").replace("\\", "/")
-        if not os.path.isfile(stat):
-            with open(stat, "w"):
-                pass
-        system_open_file(stat)
+        monaco.SimpleFileEidtorDialog("评测配置编辑器", stat)
 
     def editProblemConfigure(self):
         global PROBLEM_PATH
         stat = os.path.join(PROBLEM_PATH, "problem.yaml").replace("\\", "/")
-        if not os.path.isfile(stat):
-            with open(stat, "w"):
-                pass
-        system_open_file(stat)
+        monaco.SimpleFileEidtorDialog("题目配置编辑器", stat)
 
     def openExampleProblem(self):
         examples = os.listdir("examples")
@@ -499,10 +504,39 @@ class HelloJudgerWindow(QtWidgets.QMainWindow):
         dlg = QtWidgets.QDialog(self)
         dlg.Layout = QtWidgets.QHBoxLayout()
         dlg.widget = QtWebEngineWidgets.QWebEngineView()
-        dlg.widget.load(QtCore.QUrl.fromLocalFile(os.path.abspath("documents/manual.html")))
+        dlg.widget.contextMenuEvent = lambda a0:a0.ignore()
+        dlg.widget.load(QtCore.QUrl.fromLocalFile(os.path.abspath("resources/manual.html")))
         dlg.Layout.addWidget(dlg.widget)
         dlg.setLayout(dlg.Layout)
         dlg.setWindowTitle("Hello Judger 第三代用户文档")
+        dlg.show()
+        dlg.exec()
+    
+    def showLinense(self):
+        dlg = QtWidgets.QDialog(self)
+        dlg.Layout = QtWidgets.QVBoxLayout()
+        dlg.widget = QTextBrowser()
+        dlg.widget.setText(LICENSE)
+        dlg.close_widget = QtWidgets.QPushButton("OK")
+        dlg.close_widget.clicked.connect(lambda: dlg.close())
+        dlg.Layout.addWidget(dlg.widget)
+        dlg.Layout.addWidget(dlg.close_widget)
+        dlg.setLayout(dlg.Layout)
+        dlg.setWindowTitle("Hello Judger")
+        dlg.show()
+        dlg.exec()
+
+    def showUpdates(self):
+        dlg = QtWidgets.QDialog(self)
+        dlg.Layout = QtWidgets.QVBoxLayout()
+        dlg.widget = markdown_view.MarkdownView()
+        dlg.widget.page().loadFinished.connect(lambda: dlg.widget.setValue(UPDATES))
+        dlg.close_widget = QtWidgets.QPushButton("OK")
+        dlg.close_widget.clicked.connect(lambda: dlg.close())
+        dlg.Layout.addWidget(dlg.widget)
+        dlg.Layout.addWidget(dlg.close_widget)
+        dlg.setLayout(dlg.Layout)
+        dlg.setWindowTitle("Hello Judger")
         dlg.show()
         dlg.exec()
 
