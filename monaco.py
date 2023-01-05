@@ -32,6 +32,9 @@ class SimpleMonacoEditorDialog(QtWidgets.QDialog):
         super().__init__(parent=parent)
         self.setWindowTitle(title + " - Hello Judger")
         self.buttons = QtWidgets.QDialogButtonBox()
+        self.buttons.addButton(QtWidgets.QDialogButtonBox.StandardButton.Reset).clicked.connect(
+            lambda : self.editor.setValue(value)
+        )
         self.buttons.addButton(QtWidgets.QDialogButtonBox.StandardButton.Save).clicked.connect(
             lambda: self.editor.getValue(lambda x: self.saved.emit(x))
         )
@@ -50,7 +53,7 @@ class SimpleMonacoEditorDialog(QtWidgets.QDialog):
             self.editor.setValue(value)
         self.editor.page().loadFinished.connect(_ytxy_ak_ioi)
 
-class SimpleFileEidtorDialog(SimpleMonacoEditorDialog):
+class SimpleFileEditorDialog(SimpleMonacoEditorDialog):
     fn = ""
     def __init__(self, title = "", file = "", parent = None):
         self.fn = file = os.path.abspath(file).replace("\\", "/")
@@ -69,6 +72,7 @@ class SimpleFileEidtorDialog(SimpleMonacoEditorDialog):
         self.show()
         self.saved.connect(self.saveAction)
         self.canceled.connect(self.cancelAction)
+        self.exec()
 
     def saveAction(self, content):
         with open(self.fn, "w", encoding="utf-8") as f:

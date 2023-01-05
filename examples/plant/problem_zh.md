@@ -1,5 +1,3 @@
-# [NOIP2022] 种花
-
 ## 题目描述
 
 小 C 决定在他的花园里种出 $\texttt{CCF}$ 字样的图案，因此他想知道 $\texttt C$ 和 $\texttt F$ 两个字母各自有多少种种花的方案；不幸的是，花园中有一些土坑，这些位置无法种花，因此他希望你能帮助他解决这个问题。
@@ -73,11 +71,11 @@
 
 **【样例 2】**
 
-见附件下的 $\texttt{plant/plant2.in}$ 与 $\texttt{plant/plant2.ans}$。
+见选手目录下的 [plant2.in](file://plant2.in) 与 [plant2.ans](file://plant2.ans)。
 
 **【样例 3】**
 
-见附件下的 $\texttt{plant/plant3.in}$ 与 $\texttt{plant/plant3.ans}$。
+见选手目录下的 [plant3.in](file://plant3.in) 与 [plant3.ans](file://plant3.ans)。
 
 **【数据范围】**
 

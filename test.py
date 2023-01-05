@@ -77,6 +77,7 @@ def _debug_juding_slot(type, data):
 
 
 def judge_problem(config_path: str, program, slot=_debug_juding_slot):
+    all_accepted = True
     j_.compiled = {}
     total = 0
     datadir = dirname(config_path)
@@ -130,6 +131,8 @@ def judge_problem(config_path: str, program, slot=_debug_juding_slot):
                 raise ValueError("缺少输入输出")
             slot("task_begin", {"input": input, "output": output})
             result = judge_one(program, Task(path_join(datadir, input), path_join(datadir, output), time), judger)
+            if result[0] != "Accepted":
+                all_accepted = False
             slot("task_finished",
                  {"input": input, "output": output, "sta": result[0], "msg": result[1], "pts": per * result[2],
                   "time": result[3]})
@@ -176,9 +179,11 @@ def judge_problem(config_path: str, program, slot=_debug_juding_slot):
                 alls.append(per * result[2])
                 if result[2] != 1:
                     accepted = False
+                if result[0] != "Accepted":
+                    all_accepted = False
             status[now_subtask] = accepted
             slot("subtask_finished", {"id": now_subtask, "total": subtask_type(alls)})
             total += subtask_type(alls)
         slot("subtasks_finished", {})
     slot("judge_finished", {})
-    return total
+    return (all_accepted, total)
