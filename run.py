@@ -3,11 +3,14 @@
 """
 import subprocess
 from os.path import basename as filename
-from os.path import dirname, abspath
+from os.path import dirname, abspath, system
 from os import getcwd,chdir
 import time
+import platform
 
 def run(file, stdin=None, timeout=1):
+    if platform.system() == "Linux":
+        system("chmod +x " + repr(file))
     if stdin is not None:
         with open(stdin, "r") as f:
             stdin = f.read()
