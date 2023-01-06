@@ -1,4 +1,5 @@
 import os
+import sys
 import os.path
 import platform
 import shutil
@@ -12,13 +13,11 @@ import json
 import markdown_view
 import monaco
 import time
-import qtmodern.styles
 import webbrowser
 import accepting_chart
 import oj_searcher
 from zipfile import ZipFile
 
-os.chdir(os.path.dirname(__file__))
 
 compiler_settings = json.load(open("settings/compiler.json", "r", encoding="utf-8"))
 PROBLEM_PATH = ""
@@ -26,7 +25,7 @@ PROBLEM_PATH = ""
 with open("resources/ready.md", encoding="utf-8", mode="r") as f:
     ready_markdown = f.read()
 
-with open("LICENSE", "r", encoding="utf-8") as f:
+with open("resources/license.md", "r", encoding="utf-8") as f:
     LICENSE = f.read()
 
 with open("resources/CHANGELOG.md", encoding="utf-8", mode="r") as f:
@@ -232,8 +231,8 @@ class ProblemJudgingDialog(QtWidgets.QDialog):
         self.Layout.addWidget(self.start_btn)
         self.Layout.addWidget(self.bottom_card)
         self.Layout.addWidget(self.totalWidget)
-        self.setFixedSize(800, 400)
         self.setLayout(self.Layout)
+        self.setFixedSize(800, 400)
         self.setWindowTitle("评测窗口 - Hello Judger")
 
     def append(self, txt):
@@ -241,10 +240,15 @@ class ProblemJudgingDialog(QtWidgets.QDialog):
         self.logging.append("[" + time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()) + "] " + txt)
 
     def slot(self, type, args):
-        def make_sta(sta):
-            return QtWidgets.QLabel("<b style='color:rgb%s'>&nbsp;%s&nbsp;</b>" % (
+        def make_sta(sta, msg):
+            lbl = QtWidgets.QLabel("<b style='color:rgb%s'>&nbsp;%s&nbsp;</b>" % (
                 tuple(status_colorful.get(sta.replace(" ", ""), [21, 32, 102])), sta
             ))
+            def event(a0):
+                QtWidgets.QMessageBox.information(self, "Hello Judger", msg)
+                a0.accept()
+            lbl.mouseDoubleClickEvent = event
+            return lbl
         QApplication.processEvents()
         if type == "judge_begin":
             self.append("评测开始")
@@ -263,8 +267,8 @@ class ProblemJudgingDialog(QtWidgets.QDialog):
                 args["input"], args["output"], args["sta"], args["pts"], args["time"], args["msg"]))
             self.result_table.setRowCount(self.result_table.rowCount() + 1)
             pos = self.result_table.rowCount() - 1
-            self.result_table.setCellWidget(pos, 0, QtWidgets.QLabel(" %s/%s " % (args["input"], args["output"])))
-            self.result_table.setCellWidget(pos, 1, make_sta(" %s " % args["sta"]))
+            self.result_table.setCellWidget(pos, 0, QtWidgets.QLabel(" %s.*" % (args["input"].rsplit('.', 1)[0])))
+            self.result_table.setCellWidget(pos, 1, make_sta(" %s " % args["sta"], args["msg"]))
             self.result_table.setCellWidget(pos, 2, QtWidgets.QLabel(" %.2f " % args["pts"]))
             self.result_table.setCellWidget(pos, 3, QtWidgets.QLabel(" %.2fs " % args["time"]))
             self.result_table.resizeColumnsToContents()
@@ -331,9 +335,11 @@ class ProblemJudgingDialog(QtWidgets.QDialog):
         with open(os.path.join(PROBLEM_PATH, "problem.yaml").replace("\\", "/"), "w", encoding="utf-8") as f:
             yaml.dump(a, f)
         if allac:
-            QtWidgets.QMessageBox.information(self, "Hello Judger", "评测完成！您通过了这道题，恭喜！")
+            msg = "评测完成！您通过了这道题，获得了 %.2f 分，恭喜！" % total
         else:
-            QtWidgets.QMessageBox.information(self, "Hello Judger", "评测完成！很遗憾，您没有通过本题！")
+            msg = "评测完成！很遗憾，您获得了 %.2f 分，您没有通过本题。" % total
+
+        QtWidgets.QMessageBox.information(self, "Hello Judger", msg)
 
     def judgeDone(self):
         self.JUDGING = False
@@ -441,12 +447,13 @@ class HelloJudgerWindow(QtWidgets.QMainWindow):
         self.aboutHelloJudgerAction = QtGui.QAction("关于本程序")
         self.aboutHelloJudgerAction.triggered.connect(lambda: QtWidgets.QMessageBox.information(self,
             "关于 Hello Judger",
-            "Hello Judger 第三代 1.2 by xiezheyuan."
+            "Hello Judger 第三代 1.3 by xiezheyuan."
         ))
         self.aboutQtAction = QtGui.QAction("关于 Qt")
         self.aboutQtAction.triggered.connect(lambda: QtWidgets.QMessageBox.aboutQt(self, "Hello Judger"))
-        self.licenseAction = QtGui.QAction("查看许可证")
+        self.licenseAction = QtGui.QAction("开源许可证")
         self.licenseAction.triggered.connect(self.showLinense)
+        
         self.updatesAction = QtGui.QAction("更新内容")
         self.updatesAction.triggered.connect(self.showUpdates)
         self.openGithubAction = QtGui.QAction("Github")
@@ -469,7 +476,9 @@ class HelloJudgerWindow(QtWidgets.QMainWindow):
             self.cleanCacheAction, self.OJSearchAction,
             self.loadFromHydroAction
         ])
-        self.settingMenu.addActions([self.compileConfigureAction, self.colorfulStatusAction])
+        self.settingMenu.addActions([
+            self.compileConfigureAction, self.colorfulStatusAction
+        ])
         self.helpMenu.addActions([
             self.openExampleProblemAction, self.openManualAction
         ])
@@ -596,8 +605,8 @@ class HelloJudgerWindow(QtWidgets.QMainWindow):
     def showLinense(self):
         dlg = QtWidgets.QDialog(self)
         dlg.Layout = QtWidgets.QVBoxLayout()
-        dlg.widget = QTextBrowser()
-        dlg.widget.setText(LICENSE)
+        dlg.widget = markdown_view.MarkdownView()
+        dlg.widget.page().loadFinished.connect(lambda: dlg.widget.setValue(LICENSE))
         dlg.close_widget = QtWidgets.QPushButton("OK")
         dlg.close_widget.clicked.connect(lambda: dlg.close())
         dlg.Layout.addWidget(dlg.widget)
@@ -670,10 +679,10 @@ class HelloJudgerWindow(QtWidgets.QMainWindow):
         oj_searcher.OJSearcherDialog(md, self)
 
     def loadFromHydro(self):
+        raise Exception
         uuid = str(__import__("uuid").uuid4())
         QtWidgets.QMessageBox.information(self, "Hello Judger", "下面将进入 Hydro 题目压缩包导入。\n由于 Hello Judger 的设计参考了 Hydro，因此您可以方便地导入，但是对于某些特殊的地方需要您手动更改\n您选定的目录下会生成一个数字文件夹，那才是真正的题目文件夹。")
-        zipfile = QtWidgets.QFileDialog.getOpenFileName(self, "选择 Hydro 题目压缩包 - Hello Judger", 
-            initialFilter="Hydro 题目压缩包文件 (*.zip)")[0]
+        zipfile = QtWidgets.QFileDialog.getOpenFileName(self, "选择 Hydro 题目压缩包 - Hello Judger")[0]
         if zipfile.strip().rstrip() == "":
             return
         directory = QtWidgets.QFileDialog.getExistingDirectory(self, "选择保存目录 - Hello Judger")
@@ -699,7 +708,7 @@ class HelloJudgerWindow(QtWidgets.QMainWindow):
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication([])
-    qtmodern.styles.light(app)
+    QApplication.setStyle(QtWidgets.QStyleFactory.create("Fusion"))
     win = HelloJudgerWindow()
     win.show()
     exit(app.exec())

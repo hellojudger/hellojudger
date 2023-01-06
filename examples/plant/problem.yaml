@@ -1,8 +1,8 @@
-pid: NOIP2022A
+nAccept: 965
+nSubmit: 2221
 owner: 559
-title: 种花(plant)
+pid: NOIP2022A
 tag:
-  - NOIP
-  - '2022'
-nSubmit: 2197
-nAccept: 957
+- NOIP
+- '2022'
+title: "\u79CD\u82B1(plant)"

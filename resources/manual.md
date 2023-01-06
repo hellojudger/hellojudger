@@ -220,3 +220,21 @@ OJ 题面搜索使用相似哈希 SimHash 算法来进行高效匹配。时间�
 }
 ```
 
+## 鸣谢
+
+Hello Judger 的产生离不开下面这些开源程序，在此一并致谢：
+
+| 程序 | 作者 |开源许可证 |
+|:------:|:-------:|:-------------:|
+|    Monaco Editor    |          Microsft          |MIT |
+| KaTex | KaTex |MIT |
+| js-base64 |         Dan Kogai          |BSD-3-Clause |
+| PyQt6 系列 | Riverbank Computing |GPL v3 |
+| simhash | 1e0ng |MIT |
+| jieba | fxsjy |MIT |
+| github-markdown-css | sindresorhus |MIT |
+| markdown | Python-markdown |BSD |
+| Pygments | Pygments |BSD-2-Clause |
+| PyYAML | The YAML Project |MIT |
+| Beautiful Soup | Leonard Richardson |MIT |
+| Python | Python Software Foundation |PSF License Agreement & Zero-Clause BSD |

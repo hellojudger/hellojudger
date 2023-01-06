@@ -141,7 +141,7 @@ def testlib_checker_compare(input, output, answer, checker):
     result = str(soup.attrs.get("outcome")).replace("-", " ").title()
     points = 0.0
     if result == "Points":
-        result = "Partly Correct"
+        result = "Partially Correct"
         points = float(soup.attrs.get("points"))
     if result == "Accepted":
         points = 1.0

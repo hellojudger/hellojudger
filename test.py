@@ -36,7 +36,7 @@ def judge_one(program, task, judger):
     try:
         shutil.copyfile(program, filename)
     except BaseException as e:
-        return ["Source Error", repr(e), 0, 0]
+        return ["Internal Error", repr(e), 0, 0]
     program = filename
     try:
         result = run.run(program, task.input, task.time)
@@ -54,7 +54,6 @@ def judge_one(program, task, judger):
     judged = judger(task.input, path_join(abspath("checking/"), "%s.out" % output_id), task.answer)
     judged.append(cost_time)
     return judged
-
 
 def time_iden(content, default):
     if content is None:

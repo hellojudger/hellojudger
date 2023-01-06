@@ -2,14 +2,6 @@
 <html>
     <head>
         <meta charset="utf-8">
-        <style>
-            div#body{
-                margin-top:5em;
-                margin-left: 10em;
-                margin-right: 10em;
-                margin-bottom: 5em;
-            }
-        </style>
         <link rel="stylesheet" href="code.css">
         <link rel="stylesheet" href="katex/katex.min.css">
         <link rel="stylesheet" href="github.css">
@@ -33,8 +25,11 @@
             });
         }
         function no_link(){
-            let tagA = Array.from(document.getElementsByTagName("a"));
-            tagA.forEach(e=>{e.removeAttribute("href");});
+            let tagA = Array.from(document.querySelectorAll("a"));
+            tagA.forEach(e=>{
+                e.setAttribute("title", e.getAttribute("href"));
+                e.setAttribute("href", "javascript:void(0)");
+            });
         }
     </script>
 </html>

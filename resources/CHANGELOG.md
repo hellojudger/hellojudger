@@ -2,6 +2,20 @@
 
 下文中【后端】特指评测核心，【前端】特指 GUI。
 
+# v1.3 更新内容
+
+**前端**
+
+- 评测：双击评测的状态所在的单元格可以查看评测具体信息。
+- 许可证预览：从 Text Browser 改为 Markdown 预览。[Markdown 来源：Github TheFox/GPLv3.md ](https://github.com/TheFox/GPLv3.md)
+- Markdown 预览：链接跳转禁用逻辑被轻微修改。具体来说，现在的链接拥有链接样式但却不能响应点击，链接地址将会以鼠标 Tooltip 的方式展示。
+- 界面美化：将 QtModern 改为 Fusion。
+
+**后端**
+
+- 评测：修复了 Linux 在特定情况没有权限的 Bug
+- 评测：修复了提交死循环程序系统无法结束的 Bug。
+
 # v1.2 更新内容
 
 **前端**
