@@ -2,6 +2,8 @@ type: default
 time: 1000ms
 memory: 512MB
 filename: plant
+checker_type: testlib
+checker: wcmp.cpp
 subtasks:
   - score: 1
     id: 1

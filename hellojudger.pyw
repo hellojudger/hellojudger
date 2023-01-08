@@ -17,6 +17,8 @@ import webbrowser
 import accepting_chart
 import oj_searcher
 from zipfile import ZipFile
+import settings_dialog
+import qtawesome
 
 
 compiler_settings = json.load(open("settings/compiler.json", "r", encoding="utf-8"))
@@ -31,7 +33,8 @@ with open("resources/license.md", "r", encoding="utf-8") as f:
 with open("resources/CHANGELOG.md", encoding="utf-8", mode="r") as f:
     UPDATES = f.read()
 
-status_colorful = json.load(open("settings/status.colorful.json", "r"))
+status_colorful = json.load(open("settings/status.colorful.json", "r", encoding="utf-8"))
+status_chinese = json.load(open("settings/status.chinese.json", "r", encoding="utf-8"))
 
 def system_open_file(fp):
     uplf = platform.system()
@@ -223,7 +226,7 @@ class ProblemJudgingDialog(QtWidgets.QDialog):
         self.result_table = QtWidgets.QTableWidget()
         self.result_table.setColumnCount(4)
         self.result_table.setSortingEnabled(True)
-        self.result_table.setHorizontalHeaderLabels(["测试点", "状态", "得分", "耗时"])
+        self.result_table.setHorizontalHeaderLabels(["测试点前缀", "状态", "得分", "耗时"])
         self.bottom_card.Layout.addWidget(self.result_table)
         self.bottom_card.Layout.addWidget(self.logging)
         self.bottom_card.setLayout(self.bottom_card.Layout)
@@ -241,8 +244,10 @@ class ProblemJudgingDialog(QtWidgets.QDialog):
 
     def slot(self, type, args):
         def make_sta(sta, msg):
+            if status_chinese.get("enabled", False):
+                sta_ = status_chinese.get("content", {}).get(sta.replace(" ", ""), sta)
             lbl = QtWidgets.QLabel("<b style='color:rgb%s'>&nbsp;%s&nbsp;</b>" % (
-                tuple(status_colorful.get(sta.replace(" ", ""), [21, 32, 102])), sta
+                tuple(status_colorful.get(sta.replace(" ", ""), [21, 32, 102])), sta_
             ))
             def event(a0):
                 QtWidgets.QMessageBox.information(self, "Hello Judger", msg)
@@ -252,6 +257,12 @@ class ProblemJudgingDialog(QtWidgets.QDialog):
         QApplication.processEvents()
         if type == "judge_begin":
             self.append("评测开始")
+        elif type == "testlib_compile_begin":
+            self.append("Testlib Checker 编译开始")
+        elif type == "testlib_compile_error":
+            QtWidgets.QMessageBox.cirtical(self, "Hello Judger", "Testlib Checker 编译错误")
+        elif type == "testlib_compile_finished":
+            self.append("Testlib Checker 编译结束")
         elif type == "scan_begin":
             self.append("扫描输入输出文件开始")
         elif type == "scan_find_task":
@@ -267,8 +278,8 @@ class ProblemJudgingDialog(QtWidgets.QDialog):
                 args["input"], args["output"], args["sta"], args["pts"], args["time"], args["msg"]))
             self.result_table.setRowCount(self.result_table.rowCount() + 1)
             pos = self.result_table.rowCount() - 1
-            self.result_table.setCellWidget(pos, 0, QtWidgets.QLabel(" %s.*" % (args["input"].rsplit('.', 1)[0])))
-            self.result_table.setCellWidget(pos, 1, make_sta(" %s " % args["sta"], args["msg"]))
+            self.result_table.setCellWidget(pos, 0, QtWidgets.QLabel(" %s " % (args["input"].rsplit('.', 1)[0])))
+            self.result_table.setCellWidget(pos, 1, make_sta("%s" % args["sta"], args["msg"]))
             self.result_table.setCellWidget(pos, 2, QtWidgets.QLabel(" %.2f " % args["pts"]))
             self.result_table.setCellWidget(pos, 3, QtWidgets.QLabel(" %.2fs " % args["time"]))
             self.result_table.resizeColumnsToContents()
@@ -319,6 +330,8 @@ class ProblemJudgingDialog(QtWidgets.QDialog):
             self.judge_done.emit()
 
     def judgeFinished(self, allac, total):
+        if allac is None:
+            return
         global PROBLEM_PATH
         QApplication.processEvents()
         self.totalWidget.setText("总分：<b>%.2f</b>" % total)
@@ -355,7 +368,12 @@ class ProblemJudgingDialog(QtWidgets.QDialog):
         QApplication.processEvents()
         self.append("准备编译")
         QApplication.processEvents()
-        prog = compile.compile_cpp(self.code, self.version, self.optimization)
+        try:
+            prog = compile.compile_cpp(self.code, self.version, self.optimization)
+        except:
+            QtWidgets.QMessageBox.critical(self, "Hello Judger", "编译错误")
+            self.JUDGING = False
+            return
         self.append("编译成功")
         QApplication.processEvents()
         thread = self.JudgingThread(self)
@@ -382,13 +400,16 @@ class HelloJudgerWindow(QtWidgets.QMainWindow):
         self.optimization_choicer = QtWidgets.QComboBox()
         self.optimization_choicer.addItems(list(map(lambda x: x["name"], compiler_settings.get("optimizations", []))))
         self.code_editor = monaco.MonacoEditor()
-        self.submit_button = QtWidgets.QPushButton("提交")
+        self.submit_button = QtWidgets.QPushButton(qtawesome.icon("fa.paper-plane"),"提交")
         self.submit_button.clicked.connect(self.judgingProblem)
+        self.independentEditorButton = QtWidgets.QPushButton(qtawesome.icon("mdi.resize"), "窗口化编辑器")
+        self.independentEditorButton.clicked.connect(self.independentEditor)
         self.submiter.Layout.addWidget(self.submiter.header)
         self.submiter.Layout.addRow(QtWidgets.QLabel("<b>语言</b>"), self.language_choicer)
         self.submiter.Layout.addRow(QtWidgets.QLabel("<b>优化</b>"), self.optimization_choicer)
         self.submiter.Layout.addRow(QtWidgets.QLabel("<b>代码</b>"), self.code_editor)
         self.submiter.Layout.addWidget(self.submit_button)
+        self.submiter.Layout.addWidget(self.independentEditorButton)
         self.submiter.setLayout(self.submiter.Layout)
         self.metaView = QtWidgets.QWidget()
         self.metaView.Layout = QtWidgets.QFormLayout()
@@ -413,56 +434,58 @@ class HelloJudgerWindow(QtWidgets.QMainWindow):
         self.setCentralWidget(self.contanier)
         self.setStyleSheet("*{font-family:微软雅黑,sans-serif;}")
         self.fileMenu = QtWidgets.QMenu("文件")
-        self.openProblemAction = QtGui.QAction("打开题目")
+        self.openProblemAction = QtGui.QAction(qtawesome.icon("ei.folder-open"), "打开题目")
         self.openProblemAction.triggered.connect(self.openProblem)
-        self.newProblemAction = QtGui.QAction("新建题目")
+        self.newProblemAction = QtGui.QAction(qtawesome.icon("ei.file-new"), "新建题目")
         self.newProblemAction.triggered.connect(self.newProblem)
-        self.exitAction = QtGui.QAction("退出")
+        self.exitAction = QtGui.QAction(qtawesome.icon("mdi.exit-to-app"), "退出")
         self.exitAction.triggered.connect(exit)
         self.editMenu = QtWidgets.QMenu("编辑")
-        self.showAdditionalFileAction = QtGui.QAction("附加文件")
+        self.showAdditionalFileAction = QtGui.QAction(qtawesome.icon("ri.file-add-fill"), "附加文件")
         self.showAdditionalFileAction.triggered.connect(self.showAdditionalFile)
-        self.editProblemStatementAction = QtGui.QAction("题面")
+        self.editProblemStatementAction = QtGui.QAction(qtawesome.icon("mdi.file-document-outline"), "题面")
         self.editProblemStatementAction.triggered.connect(self.editProblemStatement)
-        self.editJudgingConfigureAction = QtGui.QAction("评测配置")
+        self.editJudgingConfigureAction = QtGui.QAction(qtawesome.icon("msc.settings-gear"), "评测配置")
         self.editJudgingConfigureAction.triggered.connect(self.editJudgingConfigure)
-        self.editProblemConfigureAction = QtGui.QAction("题目配置")
+        self.editProblemConfigureAction = QtGui.QAction(qtawesome.icon("msc.settings-gear"), "题目配置")
         self.editProblemConfigureAction.triggered.connect(self.editProblemConfigure)
         self.toolMenu = QtWidgets.QMenu("工具")
-        self.cleanCacheAction = QtGui.QAction("清理缓存")
+        self.cleanCacheAction = QtGui.QAction(qtawesome.icon("fa.recycle"), "清理缓存")
         self.cleanCacheAction.triggered.connect(self.cleanCache)
-        self.OJSearchAction = QtGui.QAction("OJ题面搜索")
+        self.OJSearchAction = QtGui.QAction(qtawesome.icon("fa.search"), "OJ题面搜索")
         self.OJSearchAction.triggered.connect(self.OJSearch)
-        self.loadFromHydroAction = QtGui.QAction("从Hydro导入")
+        self.loadFromHydroAction = QtGui.QAction(qtawesome.icon("mdi.database-import-outline"), "从Hydro导入")
         self.loadFromHydroAction.triggered.connect(self.loadFromHydro)
         self.settingMenu = QtWidgets.QMenu("设置")
-        self.compileConfigureAction = QtGui.QAction("编译配置")
+        self.compileConfigureAction = QtGui.QAction(qtawesome.icon("msc.settings"), "编译配置")
         self.compileConfigureAction.triggered.connect(lambda : monaco.SimpleFileEditorDialog("编译配置编辑器", "settings/compiler.json", self))
-        self.colorfulStatusAction = QtGui.QAction("评测配色配置")
-        self.colorfulStatusAction.triggered.connect(lambda : monaco.SimpleFileEditorDialog("评测配色配置编辑器", "settings/status.colorful.json", self))
-        self.reopenProblemAction = QtGui.QAction("重新打开题目")
+        self.colorfulStatusAction = QtGui.QAction(qtawesome.icon("msc.symbol-color"), "评测配色配置")
+        self.colorfulStatusAction.triggered.connect(lambda : settings_dialog.StatusColorfulDialog(self))
+        self.chineseStatusAction = QtGui.QAction(qtawesome.icon("fa.language"), "中文状态配置")
+        self.chineseStatusAction.triggered.connect(lambda : monaco.SimpleFileEditorDialog("中文状态配置编辑器", "settings/status.chinese.json", self))
+        self.reopenProblemAction = QtGui.QAction(qtawesome.icon("fa.repeat"), "重新打开题目")
         self.reopenProblemAction.triggered.connect(lambda : self.openProblem(False, PROBLEM_PATH))
         self.helpMenu = QtWidgets.QMenu("帮助")
         self.aboutMenu = QtWidgets.QMenu("关于")
-        self.aboutHelloJudgerAction = QtGui.QAction("关于本程序")
+        self.aboutHelloJudgerAction = QtGui.QAction(qtawesome.icon("ei.info-circle"), "关于本程序")
         self.aboutHelloJudgerAction.triggered.connect(lambda: QtWidgets.QMessageBox.information(self,
             "关于 Hello Judger",
-            "Hello Judger 第三代 1.3 by xiezheyuan."
+            "Hello Judger 第三代 1.4 by xiezheyuan."
         ))
-        self.aboutQtAction = QtGui.QAction("关于 Qt")
+        self.aboutQtAction = QtGui.QAction(qtawesome.icon("mdi.information-outline"), "关于 Qt")
         self.aboutQtAction.triggered.connect(lambda: QtWidgets.QMessageBox.aboutQt(self, "Hello Judger"))
-        self.licenseAction = QtGui.QAction("开源许可证")
+        self.licenseAction = QtGui.QAction(qtawesome.icon("mdi.license"), "开源许可证")
         self.licenseAction.triggered.connect(self.showLinense)
         
-        self.updatesAction = QtGui.QAction("更新内容")
+        self.updatesAction = QtGui.QAction(qtawesome.icon("mdi.update"), "更新内容")
         self.updatesAction.triggered.connect(self.showUpdates)
-        self.openGithubAction = QtGui.QAction("Github")
+        self.openGithubAction = QtGui.QAction(qtawesome.icon("fa.github"), "Github")
         self.openGithubAction.triggered.connect(lambda: webbrowser.open_new_tab("https://www.github.com/hellojudger/hellojudger/"))
         self.aboutMenu.addActions([self.aboutHelloJudgerAction, self.aboutQtAction, self.licenseAction, self.updatesAction, self.openGithubAction])
         self.helpMenu.addMenu(self.aboutMenu)
-        self.openExampleProblemAction = QtGui.QAction("打开示例题目")
+        self.openExampleProblemAction = QtGui.QAction(qtawesome.icon("fa5s.book-open"), "打开示例题目")
         self.openExampleProblemAction.triggered.connect(self.openExampleProblem)
-        self.openManualAction = QtGui.QAction("打开文档")
+        self.openManualAction = QtGui.QAction(qtawesome.icon("mdi.help-circle-outline"), "打开文档")
         self.openManualAction.triggered.connect(self.openManual)
         self.fileMenu.addActions([
             self.newProblemAction, self.openProblemAction, self.reopenProblemAction,
@@ -477,7 +500,8 @@ class HelloJudgerWindow(QtWidgets.QMainWindow):
             self.loadFromHydroAction
         ])
         self.settingMenu.addActions([
-            self.compileConfigureAction, self.colorfulStatusAction
+            self.compileConfigureAction, self.colorfulStatusAction,
+            self.chineseStatusAction
         ])
         self.helpMenu.addActions([
             self.openExampleProblemAction, self.openManualAction
@@ -489,7 +513,7 @@ class HelloJudgerWindow(QtWidgets.QMainWindow):
         self.menuBar().addMenu(self.helpMenu)
         self.editMenu.setDisabled(True)
         self.reopenProblemAction.setDisabled(True)
-        self.setWindowIcon(QtGui.QIcon("resources/icon.png"))
+        self.setWindowIcon(qtawesome.icon("ph.circle-wavy-check-fill", color='gold'))
         self.OJSearchAction.setDisabled(True)
 
     CHART_TAB = 0
@@ -679,7 +703,6 @@ class HelloJudgerWindow(QtWidgets.QMainWindow):
         oj_searcher.OJSearcherDialog(md, self)
 
     def loadFromHydro(self):
-        raise Exception
         uuid = str(__import__("uuid").uuid4())
         QtWidgets.QMessageBox.information(self, "Hello Judger", "下面将进入 Hydro 题目压缩包导入。\n由于 Hello Judger 的设计参考了 Hydro，因此您可以方便地导入，但是对于某些特殊的地方需要您手动更改\n您选定的目录下会生成一个数字文件夹，那才是真正的题目文件夹。")
         zipfile = QtWidgets.QFileDialog.getOpenFileName(self, "选择 Hydro 题目压缩包 - Hello Judger")[0]
@@ -705,6 +728,18 @@ class HelloJudgerWindow(QtWidgets.QMainWindow):
         dlg.close()
         QtWidgets.QMessageBox.information(self, "Hello Judger", "操作完成！")
         self.openProblem(False, os.path.join(directory,folder).replace("\\", "/"))
+    
+    def independentEditor(self):
+        def _(content):
+            editor = monaco.SimpleMonacoEditorDialog("代码编辑器", value=content)
+            def __(content):
+                self.code_editor.setValue(content)
+                editor.close()
+            editor.saved.connect(__)
+            editor.canceled.connect(editor.close)
+            editor.show()
+        self.code_editor.getValue(_)
+
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication([])

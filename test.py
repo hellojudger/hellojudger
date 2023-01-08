@@ -12,6 +12,8 @@ from os.path import dirname
 import yaml
 import uuid
 import platform
+import compile
+from PyQt6.QtWidgets import QApplication
 
 
 class Task:
@@ -102,7 +104,20 @@ def judge_problem(config_path: str, program, slot=_debug_juding_slot):
     elif checker == "integer":
         judger = j_.closure(j_.integer_compare)
     elif checker == "testlib":
-        judger = j_.closure(j_.testlib_checker_compare, [path_join(datadir, config.get("checker"))])
+        QApplication.processEvents()
+        slot("testlib_compile_begin", {"checker" : config.get("checker")})
+        with open(path_join(datadir, config.get("checker")).replace("\\", "/"), "r", encoding="utf-8") as f:
+            checker = f.read()
+        QApplication.processEvents()
+        slot("testlib_compile_content_read", {})
+        try:
+            checker = compile.compile_cpp(checker, "C++ 14", "O2", extra_file="resources/testlib.h")
+        except:
+            slot("testlib_compile_error", {})
+            return (None, 0)
+        QApplication.processEvents()
+        slot("testlib_compile_finished", {})
+        judger = j_.closure(j_.testlib_checker_compare, [checker])
     else:
         raise ValueError("不支持的评测器")
     slot("judge_begin", {})

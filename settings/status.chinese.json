@@ -1,0 +1,13 @@
+{
+    "enabled" : true,
+    "content" : {
+        "Accepted" : "答案正确",
+        "WrongAnswer" : "答案错误",
+        "RuntimeError" : "运行时错误",
+        "InternalError" : "内部错误",
+        "TimeLimitExceed" : "超出时间限制",
+        "Fail" : "评测器异常",
+        "PresentationError" : "格式错误",
+        "PartiallyCorrect" : "答案部分正确"
+    }
+}

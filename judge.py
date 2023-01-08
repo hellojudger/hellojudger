@@ -110,22 +110,11 @@ def integer_compare(input, output, answer):
             return ["Wrong Answer", "在第 %d 个整数,读到 %s,期望 %s" % (i + 1, oc[i], ac[i]), 0]
     return ["Accepted", "通过,共 %d 个整数" % len(oc), 1]
 
-compiled_ = {}
-
 def testlib_checker_compare(input, output, answer, checker):
-    print(checker)
     compiler_settings = json.load(open("settings/compiler.json", "r", encoding="utf-8"))
     def rep(s):
         return "\"" + os.path.abspath(s) + "\""  
     checker.replace("\\", "/")
-    if checker not in compiled_.keys() or not os.path.isfile(compiled_[checker]):
-        pck = checker
-        with open(checker, "r", encoding="utf-8") as f:
-            checker = f.read()
-        checker = compile.compile_cpp(checker, "C++ 14", "O2")
-        compiled_[pck] = checker
-    else:
-        checker = compiled_[checker]
     if platform.system() == "Linux":
         system("chmod -R 777 compiling/")
     checker = rep(checker)
@@ -140,9 +129,13 @@ def testlib_checker_compare(input, output, answer, checker):
     soup = BeautifulSoup(xml, "xml").select_one("result")
     result = str(soup.attrs.get("outcome")).replace("-", " ").title()
     points = 0.0
+    if result == "Partially Correct":
+        points = float(soup.attrs.get("pctype")) / 100
     if result == "Points":
         result = "Partially Correct"
-        points = float(soup.attrs.get("points"))
+        points = float(soup.attrs.get("points", 0))
+        if points > 1:
+            points /= 100
     if result == "Accepted":
         points = 1.0
     return [result, soup.text, points]

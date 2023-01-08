@@ -19,12 +19,7 @@
         32,
         102
     ],
-    "SourceError": [
-        21,
-        32,
-        102
-    ],
-    "TimeLimitExeed": [
+    "TimeLimitExceed": [
         12,
         35,
         64
@@ -39,24 +34,9 @@
         76,
         66
     ],
-    "UnexpectedEof": [
-        221,
-        76,
-        66
-    ],
     "PartiallyCorrect": [
         109,
         209,
         230
-    ],
-    "Unaccepted": [
-        221,
-        76,
-        66
-    ],
-    "Reserved": [
-        21,
-        32,
-        102
     ]
 }
