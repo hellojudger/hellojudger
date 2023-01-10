@@ -14,12 +14,12 @@ import markdown_view
 import monaco
 import time
 import webbrowser
-import accepting_chart
 import oj_searcher
 from zipfile import ZipFile
 import settings_dialog
 import qtawesome
-
+import qdarktheme
+import darkdetect
 
 compiler_settings = json.load(open("settings/compiler.json", "r", encoding="utf-8"))
 PROBLEM_PATH = ""
@@ -35,6 +35,7 @@ with open("resources/CHANGELOG.md", encoding="utf-8", mode="r") as f:
 
 status_colorful = json.load(open("settings/status.colorful.json", "r", encoding="utf-8"))
 status_chinese = json.load(open("settings/status.chinese.json", "r", encoding="utf-8"))
+ui_theme_json = json.load(open("settings/ui_theme.json", "r", encoding="utf-8"))
 
 def system_open_file(fp):
     uplf = platform.system()
@@ -156,7 +157,7 @@ class ProblemCreator(QtWidgets.QDialog):
         self.Layout.addRow(QtWidgets.QLabel("<b>保存目录</b>"), self.exportInputer)
         self.Layout.addWidget(self.do)
         self.setLayout(self.Layout)
-        self.setStyleSheet("*{font-family:微软雅黑,sans-serif;}")
+        self.setStyleSheet("*{font-family:SimHei,sans;}")
         self.setWindowTitle("Hello Judger 题目创建助手")
 
     def create_pro(self):
@@ -351,7 +352,14 @@ class ProblemJudgingDialog(QtWidgets.QDialog):
             msg = "评测完成！您通过了这道题，获得了 %.2f 分，恭喜！" % total
         else:
             msg = "评测完成！很遗憾，您获得了 %.2f 分，您没有通过本题。" % total
-
+        if os.path.isfile(os.path.join(PROBLEM_PATH, "submissions.json")):
+            submissions = json.load(open(os.path.join(PROBLEM_PATH, "submissions.json"), "r", encoding="utf-8"))
+        else:
+            submissions = []
+        submissions.append({"code" : self.code, "version" : self.version, "optimization" : self.optimization,
+            "total" : total, "time" : __import__("time").time(), "computer_name" : __import__("socket").gethostname(),
+            "user_name" : __import__("getpass").getuser(), "isAccepted" : allac})
+        json.dump(submissions, open(os.path.join(PROBLEM_PATH, "submissions.json"), "w", encoding="utf-8"))
         QtWidgets.QMessageBox.information(self, "Hello Judger", msg)
 
     def judgeDone(self):
@@ -384,12 +392,44 @@ class ProblemJudgingDialog(QtWidgets.QDialog):
         thread.run(prog)
 
 
+class QAction(QtGui.QAction):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+
+class SubmissionDetailsDialog(QtWidgets.QDialog):
+    def __init__(self, obj:dict, parent=None):
+        super().__init__(parent=parent)
+        Layout = QtWidgets.QFormLayout()
+        Layout.addWidget(QtWidgets.QLabel("<h1>提交记录详细信息</h1>"))
+        Layout.addRow(QtWidgets.QLabel("<b>提交时间</b>"), QtWidgets.QLabel(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(obj.get("time", 0)))))
+        Layout.addRow(QtWidgets.QLabel("<b>总分</b>"), QtWidgets.QLabel(" %.2f " % obj.get("total", 0)))
+        if obj.get("Accepted", False):
+            Layout.addRow(QtWidgets.QLabel("<b>状态</b>"), QtWidgets.QLabel("Accepted"))
+        else:
+            Layout.addRow(QtWidgets.QLabel("<b>状态</b>"), QtWidgets.QLabel("Unaccepted"))
+        Layout.addRow(QtWidgets.QLabel("<b>"))
+        Layout.addRow(QtWidgets.QLabel("<b>语言</b>"), QtWidgets.QLabel(obj.get("version", "N/A")))
+        Layout.addRow(QtWidgets.QLabel("<b>优化</b>"), QtWidgets.QLabel(obj.get("optimization", "N/A")))
+        Layout.addRow(QtWidgets.QLabel("<b>提交计算机名</b>"), QtWidgets.QLabel(obj.get("computer_name", "N/A")))
+        Layout.addRow(QtWidgets.QLabel("<b>提交用户名</b>"), QtWidgets.QLabel(obj.get("user_name", "N/A")))
+        monaco_ = monaco.MonacoEditor()
+        def _():
+            monaco_.page().runJavaScript(r"editor.updateOptions({readOnly: true});")
+            monaco_.setValue(obj.get("code", ""))
+        monaco_.page().loadFinished.connect(_)
+        Layout.addRow(QtWidgets.QLabel("<b>代码</b>"), monaco_)
+        self.setLayout(Layout)
+        self.setWindowTitle("提交记录详细信息 - Hello Judger")
+        self.show()
+        self.exec()
+
+
 class HelloJudgerWindow(QtWidgets.QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent=parent)
         self.setWindowTitle("Hello Judger")
-        self.contanier = QtWidgets.QWidget()
-        self.contanier.Layout = QtWidgets.QHBoxLayout()
+        self.contanier = QtWidgets.QSplitter(QtCore.Qt.Orientation.Horizontal)
         self.problem_shower = markdown_view.MarkdownView()
         self.problem_shower.page().loadFinished.connect(lambda: self.problem_shower.setValue(ready_markdown))
         self.submiter = QtWidgets.QWidget()
@@ -422,70 +462,72 @@ class HelloJudgerWindow(QtWidgets.QMainWindow):
         self.metaView.Layout.addRow(QtWidgets.QLabel("<b>作者</b>"), self.ownerLabel)
         self.metaView.Layout.addRow(QtWidgets.QLabel("<b>时间限制</b>"), self.time_limit_shower)
         self.metaView.setLayout(self.metaView.Layout)
+        self.submissionsView = QtWidgets.QTableWidget()
         self.rightCard = QtWidgets.QTabWidget()
         self.rightCard.addTab(self.submiter, "提交代码")
         self.rightCard.addTab(self.metaView, "附加信息")
-        self.contanier.Layout.addWidget(self.problem_shower)
-        self.contanier.Layout.addWidget(self.rightCard)
-        self.contanier.Layout.setStretchFactor(self.problem_shower, 7)
-        self.contanier.Layout.setStretchFactor(self.rightCard, 3)
-        self.contanier.setLayout(self.contanier.Layout)
-        self.contanier.setDisabled(True)
+        self.rightCard.addTab(self.submissionsView, "提交记录")
+        self.contanier.addWidget(self.problem_shower)
+        self.contanier.addWidget(self.rightCard)
+        self.contanier.setStretchFactor(0, 7)
+        self.contanier.setStretchFactor(1, 3)
+        self.rightCard.setDisabled(True)
         self.setCentralWidget(self.contanier)
-        self.setStyleSheet("*{font-family:微软雅黑,sans-serif;}")
         self.fileMenu = QtWidgets.QMenu("文件")
-        self.openProblemAction = QtGui.QAction(qtawesome.icon("ei.folder-open"), "打开题目")
+        self.openProblemAction = QAction(qtawesome.icon("ei.folder-open"), "打开题目")
         self.openProblemAction.triggered.connect(self.openProblem)
-        self.newProblemAction = QtGui.QAction(qtawesome.icon("ei.file-new"), "新建题目")
+        self.newProblemAction = QAction(qtawesome.icon("ei.file-new"), "新建题目")
         self.newProblemAction.triggered.connect(self.newProblem)
-        self.exitAction = QtGui.QAction(qtawesome.icon("mdi.exit-to-app"), "退出")
+        self.exitAction = QAction(qtawesome.icon("mdi.exit-to-app"), "退出")
         self.exitAction.triggered.connect(exit)
         self.editMenu = QtWidgets.QMenu("编辑")
-        self.showAdditionalFileAction = QtGui.QAction(qtawesome.icon("ri.file-add-fill"), "附加文件")
+        self.showAdditionalFileAction = QAction(qtawesome.icon("ri.file-add-fill"), "附加文件")
         self.showAdditionalFileAction.triggered.connect(self.showAdditionalFile)
-        self.editProblemStatementAction = QtGui.QAction(qtawesome.icon("mdi.file-document-outline"), "题面")
+        self.editProblemStatementAction = QAction(qtawesome.icon("mdi.file-document-outline"), "题面")
         self.editProblemStatementAction.triggered.connect(self.editProblemStatement)
-        self.editJudgingConfigureAction = QtGui.QAction(qtawesome.icon("msc.settings-gear"), "评测配置")
+        self.editJudgingConfigureAction = QAction(qtawesome.icon("msc.settings-gear"), "评测配置")
         self.editJudgingConfigureAction.triggered.connect(self.editJudgingConfigure)
-        self.editProblemConfigureAction = QtGui.QAction(qtawesome.icon("msc.settings-gear"), "题目配置")
+        self.editProblemConfigureAction = QAction(qtawesome.icon("msc.settings-gear"), "题目配置")
         self.editProblemConfigureAction.triggered.connect(self.editProblemConfigure)
         self.toolMenu = QtWidgets.QMenu("工具")
-        self.cleanCacheAction = QtGui.QAction(qtawesome.icon("fa.recycle"), "清理缓存")
+        self.cleanCacheAction = QAction(qtawesome.icon("fa.recycle"), "清理缓存")
         self.cleanCacheAction.triggered.connect(self.cleanCache)
-        self.OJSearchAction = QtGui.QAction(qtawesome.icon("fa.search"), "OJ题面搜索")
+        self.OJSearchAction = QAction(qtawesome.icon("fa.search"), "OJ题面搜索")
         self.OJSearchAction.triggered.connect(self.OJSearch)
-        self.loadFromHydroAction = QtGui.QAction(qtawesome.icon("mdi.database-import-outline"), "从Hydro导入")
+        self.loadFromHydroAction = QAction(qtawesome.icon("mdi.database-import-outline"), "从Hydro导入")
         self.loadFromHydroAction.triggered.connect(self.loadFromHydro)
         self.settingMenu = QtWidgets.QMenu("设置")
-        self.compileConfigureAction = QtGui.QAction(qtawesome.icon("msc.settings"), "编译配置")
+        self.compileConfigureAction = QAction(qtawesome.icon("msc.settings"), "编译配置")
         self.compileConfigureAction.triggered.connect(lambda : monaco.SimpleFileEditorDialog("编译配置编辑器", "settings/compiler.json", self))
-        self.colorfulStatusAction = QtGui.QAction(qtawesome.icon("msc.symbol-color"), "评测配色配置")
+        self.colorfulStatusAction = QAction(qtawesome.icon("msc.symbol-color"), "评测配色配置")
         self.colorfulStatusAction.triggered.connect(lambda : settings_dialog.StatusColorfulDialog(self))
-        self.chineseStatusAction = QtGui.QAction(qtawesome.icon("fa.language"), "中文状态配置")
+        self.chineseStatusAction = QAction(qtawesome.icon("fa.language"), "中文状态配置")
         self.chineseStatusAction.triggered.connect(lambda : monaco.SimpleFileEditorDialog("中文状态配置编辑器", "settings/status.chinese.json", self))
-        self.reopenProblemAction = QtGui.QAction(qtawesome.icon("fa.repeat"), "重新打开题目")
+        self.uiSettingAction = QAction(qtawesome.icon("mdi.theme-light-dark"), "界面主题配置")
+        self.uiSettingAction.triggered.connect(lambda : settings_dialog.UiThemeDialog(self))
+        self.reopenProblemAction = QAction(qtawesome.icon("fa.repeat"), "重新打开题目")
         self.reopenProblemAction.triggered.connect(lambda : self.openProblem(False, PROBLEM_PATH))
         self.helpMenu = QtWidgets.QMenu("帮助")
         self.aboutMenu = QtWidgets.QMenu("关于")
-        self.aboutHelloJudgerAction = QtGui.QAction(qtawesome.icon("ei.info-circle"), "关于本程序")
+        self.aboutHelloJudgerAction = QAction(qtawesome.icon("ei.info-circle"), "关于本程序")
         self.aboutHelloJudgerAction.triggered.connect(lambda: QtWidgets.QMessageBox.information(self,
             "关于 Hello Judger",
-            "Hello Judger 第三代 1.4 by xiezheyuan."
+            "Hello Judger 第三代 1.5 by xiezheyuan."
         ))
-        self.aboutQtAction = QtGui.QAction(qtawesome.icon("mdi.information-outline"), "关于 Qt")
+        self.aboutQtAction = QAction(qtawesome.icon("mdi.information-outline"), "关于 Qt")
         self.aboutQtAction.triggered.connect(lambda: QtWidgets.QMessageBox.aboutQt(self, "Hello Judger"))
-        self.licenseAction = QtGui.QAction(qtawesome.icon("mdi.license"), "开源许可证")
+        self.licenseAction = QAction(qtawesome.icon("mdi.license"), "开源许可证")
         self.licenseAction.triggered.connect(self.showLinense)
         
-        self.updatesAction = QtGui.QAction(qtawesome.icon("mdi.update"), "更新内容")
+        self.updatesAction = QAction(qtawesome.icon("mdi.update"), "更新内容")
         self.updatesAction.triggered.connect(self.showUpdates)
-        self.openGithubAction = QtGui.QAction(qtawesome.icon("fa.github"), "Github")
+        self.openGithubAction = QAction(qtawesome.icon("fa.github"), "Github")
         self.openGithubAction.triggered.connect(lambda: webbrowser.open_new_tab("https://www.github.com/hellojudger/hellojudger/"))
         self.aboutMenu.addActions([self.aboutHelloJudgerAction, self.aboutQtAction, self.licenseAction, self.updatesAction, self.openGithubAction])
         self.helpMenu.addMenu(self.aboutMenu)
-        self.openExampleProblemAction = QtGui.QAction(qtawesome.icon("fa5s.book-open"), "打开示例题目")
+        self.openExampleProblemAction = QAction(qtawesome.icon("fa5s.book-open"), "打开示例题目")
         self.openExampleProblemAction.triggered.connect(self.openExampleProblem)
-        self.openManualAction = QtGui.QAction(qtawesome.icon("mdi.help-circle-outline"), "打开文档")
+        self.openManualAction = QAction(qtawesome.icon("mdi.help-circle-outline"), "打开文档")
         self.openManualAction.triggered.connect(self.openManual)
         self.fileMenu.addActions([
             self.newProblemAction, self.openProblemAction, self.reopenProblemAction,
@@ -501,7 +543,7 @@ class HelloJudgerWindow(QtWidgets.QMainWindow):
         ])
         self.settingMenu.addActions([
             self.compileConfigureAction, self.colorfulStatusAction,
-            self.chineseStatusAction
+            self.chineseStatusAction, self.uiSettingAction
         ])
         self.helpMenu.addActions([
             self.openExampleProblemAction, self.openManualAction
@@ -531,7 +573,7 @@ class HelloJudgerWindow(QtWidgets.QMainWindow):
             return
         global PROBLEM_PATH
         PROBLEM_PATH = fp
-        self.contanier.setDisabled(False)
+        self.rightCard.setDisabled(False)
         self.editMenu.setDisabled(False)
         self.reopenProblemAction.setDisabled(False)
         self.OJSearchAction.setDisabled(False)
@@ -548,14 +590,7 @@ class HelloJudgerWindow(QtWidgets.QMainWindow):
             self.problemNameLabel.setText(str(a.get("title", "未知题目")))
             self.tagsLabel.setText(", ".join(list(map(str, a.get("tag", ["没有设置标签"])))))
             self.ownerLabel.setText(str(a.get("owner", "匿名")))
-            if not (a.get("nAccept", 0) == 0 and a.get("nSubmit", 0) == 0):
-                if self.CHART_TAB != 0:
-                    self.rightCard.removeTab(self.CHART_TAB)
-                chart = accepting_chart.AcceptingChart(int(a.get("nSubmit")), int(a.get("nAccept")))
-                self.rightCard.addTab(chart, "通过量统计")
-                self.CHART_TAB = self.rightCard.count() - 1
-            else:
-                self.CHART_TAB = 0
+            
         except:
             self.setWindowTitle("未知题目 - Hello Judger")
             self.setWindowTitle("未知题目" + " - Hello Judger")
@@ -563,6 +598,24 @@ class HelloJudgerWindow(QtWidgets.QMainWindow):
             self.tagsLabel.setText("没有设置标签")
             self.ownerLabel.setText("匿名")
         self.time_limit_shower.setText("<h3>" + get_time_limit() + "</h3>")
+        if os.path.isfile(os.path.join(PROBLEM_PATH, "submissions.json")):
+            self.submissionsView.clear()
+            self.submissionsView.setColumnCount(4)
+            self.submissionsView.setHorizontalHeaderLabels(["时间", "得分", "状态", "详细信息"])
+            data = json.load(open(os.path.join(PROBLEM_PATH, "submissions.json"), "r", encoding="utf-8"))
+            for i in data:
+                self.submissionsView.setRowCount(self.submissionsView.rowCount() + 1)
+                self.submissionsView.setCellWidget(self.submissionsView.rowCount()-1, 0, 
+                    QtWidgets.QLabel(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(i.get("time", 0)))))
+                self.submissionsView.setCellWidget(self.submissionsView.rowCount()-1, 1, QtWidgets.QLabel(" %.2f " % i.get("total", 0)))
+                if i.get("Accepted", False):
+                    self.submissionsView.setCellWidget(self.submissionsView.rowCount()-1, 2, QtWidgets.QLabel("Accepted"))
+                else:
+                    self.submissionsView.setCellWidget(self.submissionsView.rowCount()-1, 2, QtWidgets.QLabel("Unaccepted"))
+                button = QtWidgets.QPushButton("...")
+                button.clicked.connect(lambda:SubmissionDetailsDialog(i))
+                self.submissionsView.setCellWidget(self.submissionsView.rowCount()-1, 3, button)
+            self.submissionsView.resizeColumnsToContents()
 
     def showAdditionalFile(self):
         global PROBLEM_PATH
@@ -742,7 +795,10 @@ class HelloJudgerWindow(QtWidgets.QMainWindow):
 
 
 if __name__ == "__main__":
+    qdarktheme.enable_hi_dpi()
     app = QtWidgets.QApplication([])
+    app.setFont(QtGui.QFont(["Microsoft YaHei", "SimHei"]))
+    qdarktheme.setup_theme(ui_theme_json.get("theme", "dark"))
     QApplication.setStyle(QtWidgets.QStyleFactory.create("Fusion"))
     win = HelloJudgerWindow()
     win.show()

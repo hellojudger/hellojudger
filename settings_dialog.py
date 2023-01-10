@@ -91,9 +91,15 @@ class StatusColorfulDialog(QtWidgets.QDialog):
         self.close()
 
 
+def UiThemeDialog(parent=None):
+    value,_ = QtWidgets.QInputDialog.getItem(parent, "Hello Judger", "选择主题", ["light", "dark", "auto"], 0)
+    if not _:
+        return
+    json.dump({"theme" : value}, open("settings/ui_theme.json", "w", encoding="utf-8"))
+
 if __name__ == "__main__":
     app = QtWidgets.QApplication([])
     QtWidgets.QApplication.setStyle(QtWidgets.QStyleFactory.create("Fusion"))
-    win = StatusColorfulDialog()
+    win = UiThemeDialog()
     win.show()
     exit(app.exec())

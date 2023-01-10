@@ -3,11 +3,25 @@ from PyQt6 import QtWidgets, QtGui
 from PyQt6.QtCore import QUrl, pyqtSignal
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 import base64
+import json
+import darkdetect
+
+ui_theme_json = json.load(open("settings/ui_theme.json", "r", encoding="utf-8"))
+theme = ui_theme_json.get("theme", "dark")
+
+if theme == "auto":
+    if darkdetect.isLight():
+        theme = "light"
+    else:
+        theme = "dark"
 
 class MonacoEditor(QWebEngineView):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.load(QUrl.fromLocalFile(os.path.abspath("resources/editor.html")))
+        if theme == "dark":
+            self.load(QUrl.fromLocalFile(os.path.abspath("resources/editor_dark.html")))
+        else:
+            self.load(QUrl.fromLocalFile(os.path.abspath("resources/editor.html")))
 
     def getValue(self, callback):
         self.page().runJavaScript("monaco.editor.getModels()[0].getValue()", callback)
