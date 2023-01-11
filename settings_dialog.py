@@ -90,6 +90,68 @@ class StatusColorfulDialog(QtWidgets.QDialog):
         self.canceled.emit()
         self.close()
 
+class StatusChineseDialog(QtWidgets.QDialog):
+
+    saved = QtCore.pyqtSignal()
+    canceled = QtCore.pyqtSignal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent=parent)
+        Layout = QtWidgets.QFormLayout()
+        self.json_body = json.load(open("settings/status.chinese.json", "r", encoding="utf-8"))
+        Layout.addWidget(QtWidgets.QLabel("<h1>中文状态配置编辑器</h1>"))
+        self.widgets = {}
+        self.is_enabled = QtWidgets.QComboBox()
+        self.is_enabled.addItems(["是", "否"])
+        self.is_enabled.setCurrentIndex(int(not self.json_body["enabled"]))
+        Layout.addRow(QtWidgets.QLabel("<b>是否启用</b>"), self.is_enabled)
+        for i in self.json_body.get("content", []):
+            choicer = QtWidgets.QLineEdit(self.json_body["content"][i])
+            self.widgets[i] = choicer
+        for i in self.widgets:
+            j = ""
+            for k in i:
+                if k.isupper():
+                    j += " "
+                j += k
+            j = j[1:]
+            Layout.addRow(QtWidgets.QLabel("<b> %s </b>" % j), self.widgets[i])
+        self.buttons = QtWidgets.QDialogButtonBox()
+        self.buttons.addButton(QtWidgets.QDialogButtonBox.StandardButton.Reset).clicked.connect(
+            self.reset
+        )
+        self.buttons.addButton(QtWidgets.QDialogButtonBox.StandardButton.Save).clicked.connect(
+            self.save
+        )
+        self.buttons.addButton(QtWidgets.QDialogButtonBox.StandardButton.Cancel).clicked.connect(
+            self.cancel
+        )
+        Layout.addWidget(self.buttons)
+        self.setLayout(Layout)
+        self.setWindowTitle("评测配色编辑器 - Hello Judger")
+        self.show()
+    
+    def reset(self):
+        self.is_enabled.setCurrentIndex(int(not self.json_body["enabled"]))
+        for i in self.json_body.get("content", []):
+            self.widgets[i].setText(self.json_body["content"][i])
+    
+    def save(self):
+        for i in self.widgets:
+            color = self.widgets[i].text()
+            self.json_body["content"][i] = color
+        self.json_body["enabled"] = self.is_enabled.currentText() == "是"
+        json.dump(self.json_body, open("settings/status.chinese.json", "w", encoding="utf-8"))
+        self.saved.emit()
+        self.close()
+    
+    def closeEvent(self, a0):
+        self.cancel()
+        a0.accept()
+
+    def cancel(self):
+        self.canceled.emit()
+        self.close()
 
 def UiThemeDialog(parent=None):
     value,_ = QtWidgets.QInputDialog.getItem(parent, "Hello Judger", "选择主题", ["light", "dark", "auto"], 0)
@@ -97,9 +159,10 @@ def UiThemeDialog(parent=None):
         return
     json.dump({"theme" : value}, open("settings/ui_theme.json", "w", encoding="utf-8"))
 
+
 if __name__ == "__main__":
     app = QtWidgets.QApplication([])
     QtWidgets.QApplication.setStyle(QtWidgets.QStyleFactory.create("Fusion"))
-    win = UiThemeDialog()
+    win = StatusChineseDialog()
     win.show()
     exit(app.exec())

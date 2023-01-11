@@ -71,7 +71,6 @@ class OJSearcherDialog(QtWidgets.QDialog):
         Layout.addWidget(QtWidgets.QLabel("<b>相似度小于 80% 的结果大概率不准，会标成灰色斜体，这些结果仅作为参考。</b>"))
         self.setLayout(Layout)
         self.show()
-        self.setFixedSize(640, 480)
         self.setWindowTitle("OJ 题面搜索 - Hello Judger")
         self.exec()
         

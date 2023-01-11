@@ -1,13 +1,1 @@
-{
-    "enabled" : true,
-    "content" : {
-        "Accepted" : "答案正确",
-        "WrongAnswer" : "答案错误",
-        "RuntimeError" : "运行时错误",
-        "InternalError" : "内部错误",
-        "TimeLimitExceed" : "超出时间限制",
-        "Fail" : "评测器异常",
-        "PresentationError" : "格式错误",
-        "PartiallyCorrect" : "答案部分正确"
-    }
-}
+{"enabled": false, "content": {"Accepted": "\u7b54\u6848\u6b63\u786e", "WrongAnswer": "\u7b54\u6848\u9519\u8bef", "RuntimeError": "\u8fd0\u884c\u65f6\u9519\u8bef", "InternalError": "\u5185\u90e8\u9519\u8bef", "TimeLimitExceed": "\u8d85\u51fa\u65f6\u95f4\u9650\u5236", "Fail": "\u8bc4\u6d4b\u5668\u5f02\u5e38", "PresentationError": "\u683c\u5f0f\u9519\u8bef", "PartiallyCorrect": "\u7b54\u6848\u90e8\u5206\u6b63\u786e"}}
